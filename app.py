@@ -54,17 +54,32 @@ if menu == "🛒 Frente de Caixa (PDV)":
         st.warning("Nenhum produto cadastrado no estoque ainda.")
     else:
         df_produtos = pd.DataFrame(produtos_lista)
+        
+        # --- NOVO: BARRA DE PESQUISA REAL-TIME ---
+        pesquisa = st.text_input("🔍 Pesquisar produto pelo nome:", "").strip().lower()
+        
+        # Filtrar a lista com base no que foi digitado
+        if pesquisa:
+            produtos_filtrados = [row for row in produtos_lista if pesquisa in row['nome'].lower()]
+        else:
+            produtos_filtrados = produtos_lista
+
         col1, col2 = st.columns([2, 1])
         
         with col1:
             st.subheader("Adicionar Produto")
+            
+            # Montar as opções apenas com os produtos que passaram no filtro e têm estoque
             opcoes_produtos = {
                 f"{row['nome']} (R$ {row['preco']:.2f}) - Estoque: {row['quantidade']}": row['id'] 
-                for row in produtos_lista if row['quantidade'] > 0
+                for row in produtos_filtrados if row['quantidade'] > 0
             }
             
             if not opcoes_produtos:
-                st.error("Todos os produtos cadastrados estão com estoque zerado!")
+                if pesquisa:
+                    st.error("Nenhum produto encontrado com esse nome ou sem estoque!")
+                else:
+                    st.error("Todos os produtos cadastrados estão com estoque zerado!")
             else:
                 selecionado = st.selectbox("Escolha o Item", list(opcoes_produtos.keys()))
                 id_prod = opcoes_produtos[selecionado]
@@ -100,15 +115,12 @@ if menu == "🛒 Frente de Caixa (PDV)":
                 with c_btn1:
                     if st.button("✅ Confirmar Venda", type="primary"):
                         for item in st.session_state.carrinho:
-                            # 1. Abater do estoque no Supabase usando RPC ou atualização direta
-                            # Pegar quantidade atualizada antes de abater
                             res_qtd = supabase.table("produtos").select("quantidade").eq("id", item['id']).execute()
                             qtd_atual_banco = res_qtd.data[0]['quantidade']
                             nova_qtd = qtd_atual_banco - item['quantidade']
                             
                             supabase.table("produtos").update({"quantidade": nova_qtd}).eq("id", item['id']).execute()
                             
-                            # 2. Inserir registro na tabela de vendas
                             supabase.table("vendas").insert({
                                 "produto_id": item['id'],
                                 "nome_produto": item['nome'],
@@ -117,7 +129,7 @@ if menu == "🛒 Frente de Caixa (PDV)":
                             }).execute()
                             
                         st.session_state.carrinho = []
-                        st.success("Venda processada com sucesso no Supabase!")
+                        st.success("Venda processada com sucesso!")
                         st.rerun()
                 with c_btn2:
                     if st.button("🗑️ Cancelar"):
@@ -125,7 +137,6 @@ if menu == "🛒 Frente de Caixa (PDV)":
                         st.rerun()
             else:
                 st.info("Aguardando produtos.")
-
 # ---------------------------------------------------------
 # MÓDULO 2: ESTOQUE & PRODUTOS
 # ---------------------------------------------------------
