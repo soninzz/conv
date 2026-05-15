@@ -189,7 +189,7 @@ elif menu == "📦 Estoque & Produtos":
 elif menu == "📊 Relatórios de Vendas":
     st.header("📊 Histórico de Vendas Real-Time")
     
-    res_vendas = supabase.table("vendas").select("id, nome_produto, quantidade, total, data").order("id", descending=True).execute()
+    res_vendas = supabase.table("vendas").select("id, nome_produto, quantidade, total, data").order("id", desc=True).execute()
     
     if not res_vendas.data:
         st.info("Nenhuma venda computada até o momento.")
